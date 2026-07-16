@@ -1,0 +1,10 @@
+{
+  "schema_version": "1",
+  "probe_type": "version_help_only",
+  "declared_recovery_level": "observe_and_cancel",
+  "unsupported_control_actions": ["message"],
+  "conclusions": {
+    "in_flight_message_control": "unproven",
+    "provider_native_session_resume": "unproven"
+  }
+}

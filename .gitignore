@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.recollect/
+build/
+*.egg-info/
+
+# Local/operator provider configuration (may reference env var names, never
+# real secrets, but is still operator-specific and must not be committed).
+# `.recollect/` above already covers repo-local and user-level config.{yaml,yml,json}.
+# This covers the legacy repo-root default only -- anchored to the repo root
+# so it does not hide the tracked examples/*/providers.json fixtures.
+/providers.json

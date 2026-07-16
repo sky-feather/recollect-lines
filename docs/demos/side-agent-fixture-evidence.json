@@ -1,0 +1,40 @@
+{
+  "mode": "fixture",
+  "provider_calls": false,
+  "external_root_id": "integrated-fixture-session",
+  "children": [
+    {
+      "runtime": "codex",
+      "agent_profile": "repository-investigator",
+      "result_schema": "evidence-report",
+      "requested_model": "fixture-codex-model",
+      "effective_model": "fixture-codex-model",
+      "raw_evidence_artifact": "events.jsonl",
+      "normalized_artifact": "normalized_result.json"
+    },
+    {
+      "runtime": "claude_code",
+      "agent_profile": "architecture-reviewer",
+      "result_schema": "review-findings",
+      "requested_model": "fixture-claude-model",
+      "effective_model": "fixture-claude-model",
+      "raw_evidence_artifact": "events.jsonl",
+      "normalized_artifact": "normalized_result.json"
+    },
+    {
+      "runtime": "mock",
+      "agent_profile": "test-planner",
+      "result_schema": "plain-summary",
+      "raw_evidence_artifact": "runtime_raw_output.txt",
+      "normalized_artifact": "normalized_result.json"
+    }
+  ],
+  "completion_events_polled": true,
+  "task_tree_node_count_min": 6,
+  "steering_refused": true,
+  "follow_up_relationship": "continues",
+  "writer_isolation_enforced": true,
+  "commands": [
+    "PYTHONPATH=src python3 scripts/side_agent_fixture_acceptance.py"
+  ]
+}

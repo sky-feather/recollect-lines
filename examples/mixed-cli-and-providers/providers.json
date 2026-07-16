@@ -1,0 +1,19 @@
+{
+  "providers": {
+    "docs_gateway": {
+      "kind": "openai-compatible",
+      "base_url": "https://api.example.invalid/v1",
+      "api_key_env": "DOCS_EXAMPLE_API_KEY",
+      "default_model": "example-model",
+      "tls_verify": true,
+      "allow_insecure_http": false,
+      "request_timeout_seconds": 90,
+      "capabilities": {
+        "chat_completions": true,
+        "structured_output": true,
+        "streaming": false,
+        "tool_calls": false
+      }
+    }
+  }
+}

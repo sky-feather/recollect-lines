@@ -1,0 +1,19 @@
+{
+  "providers": {
+    "local_litellm": {
+      "kind": "openai-compatible",
+      "base_url": "http://127.0.0.1:4000/v1",
+      "api_key_env": "LITELLM_MASTER_KEY",
+      "default_model": "local-coder",
+      "allow_insecure_http": true,
+      "request_timeout_seconds": 120,
+      "capabilities": {
+        "chat_completions": true,
+        "structured_output": false,
+        "streaming": false,
+        "tool_calls": false
+      },
+      "estimated_cost_usd_upper_bound": 0.05
+    }
+  }
+}

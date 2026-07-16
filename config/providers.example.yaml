@@ -1,0 +1,56 @@
+# Example provider configuration for recollect-lines' openai_compatible runtime.
+#
+# This file is illustrative only: base URLs, model names, and api_key_env
+# names are placeholders. It contains no real API keys, tokens, or auth
+# headers -- api_key_env names an *environment variable* that must hold the
+# real credential; the credential value itself is never written to a config
+# file.
+#
+# Copy this file to one of the resolved config locations (highest precedence
+# first) and edit it:
+#   --providers-config /path/to/your.yaml   (explicit flag)
+#   $RECOLLECT_CONFIG                       (env var pointing at a file)
+#   ./.recollect/config.yaml                (repo-local; gitignored)
+#   ~/.recollect/config.yaml                (user-level; gitignored)
+# See docs/cli.md for the full resolution order, and
+# config/providers.schema.json for the machine-readable contract.
+#
+# `recollect-lines config validate` reports the resolved source and
+# validation result without ever printing a credential value.
+# `recollect-lines config init` writes a minimal starter file like this one.
+
+providers:
+  # A loopback gateway (e.g. a local LiteLLM proxy). http:// is only ever
+  # permitted for loopback hosts (127.0.0.1/localhost/::1), and only with
+  # allow_insecure_http explicitly set to true.
+  local_gateway:
+    kind: openai-compatible
+    base_url: http://127.0.0.1:4000/v1
+    api_key_env: LOCAL_GATEWAY_API_KEY
+    default_model: local-coder
+    allow_insecure_http: true
+    request_timeout_seconds: 120
+    capabilities:
+      chat_completions: true
+      structured_output: false
+      streaming: false
+      tool_calls: false
+
+  # A remote HTTPS endpoint. tls_verify defaults to true; ca_bundle is an
+  # optional filesystem path to a custom CA bundle file (never inline
+  # certificate/key content). See docs/getting-started.md for portable CA
+  # guidance across Linux/macOS.
+  remote_gateway:
+    kind: openai-compatible
+    base_url: https://gateway.example.invalid/v1
+    api_key_env: REMOTE_GATEWAY_API_KEY
+    default_model: remote-coder
+    tls_verify: true
+    # ca_bundle: /etc/ssl/certs/ca-certificates.crt
+    request_timeout_seconds: 90
+    estimated_cost_usd_upper_bound: 0.05
+    capabilities:
+      chat_completions: true
+      structured_output: true
+      streaming: false
+      tool_calls: false

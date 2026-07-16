@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install package and runtime dependencies
+        run: python3 -m pip install .
+
+      - name: Run test suite
+        run: PYTHONPATH=src python3 -m unittest discover -s tests -v
+
+      - name: Run generic MCP-host acceptance harness
+        run: python3 scripts/mcp_acceptance.py
+
+      - name: Run integrated side-agent fixture acceptance (MR 8.8)
+        run: PYTHONPATH=src python3 scripts/side_agent_fixture_acceptance.py
+
+      - name: Run five-minute operator acceptance (Wave 3 / PR 9)
+        if: matrix.python-version == '3.11'
+        run: python3 scripts/five_minute_acceptance.py
+
+      - name: Run clean-install acceptance (Phase 7A)
+        if: matrix.python-version == '3.11'
+        run: python3 scripts/clean_install_acceptance.py
+
+      - name: Byte-compile source, tests, and scripts
+        run: python3 -m compileall -q src tests scripts
+
+      - name: Check for whitespace errors
+        run: git diff --check $(git hash-object -t tree /dev/null)
+
+      - name: Smoke-test console entry points
+        if: matrix.python-version == '3.11'
+        run: |
+          recollect-lines --help
+          recollect-mcp --help
+          ! command -v recollect

@@ -1,0 +1,86 @@
+{
+  "api_path": "recollect-mcp MCP tools: delegate \u2192 status \u2192 collect",
+  "billing": "ChatGPT/Codex subscription quota (no USD cost reported by this harness)",
+  "broker_home": "<redacted>",
+  "codex_cli_version": "codex-cli 0.144.4",
+  "demo_schema_version": "1",
+  "does_not_prove": [
+    "CLI one-shot start/collect across separate shell invocations",
+    "Post-restart session resume or result recovery",
+    "Continuous certification against future Codex CLI releases"
+  ],
+  "duration_seconds": 180.2,
+  "exit_status": 0,
+  "fixture": {
+    "description": "two-file git repo with MARKER_ALPHA / MARKER_BETA"
+  },
+  "lifecycle_transitions": [
+    {
+      "at_s": 0,
+      "step": "initialize"
+    },
+    {
+      "ok": true,
+      "state": "running",
+      "step": "delegate"
+    },
+    {
+      "at_s": 0.1,
+      "state": "running",
+      "step": "status"
+    },
+    {
+      "ok": true,
+      "state": "succeeded",
+      "step": "collect"
+    }
+  ],
+  "mode": "live",
+  "proves": [
+    "Parent-style MCP host can delegate bounded work to real Codex CLI through the broker",
+    "Broker records lifecycle and returns runtime-reported summary with artifact evidence"
+  ],
+  "provider_call_occurred": true,
+  "recollect_lines_version": "0.1.0",
+  "recorded_at": "2026-07-14T17:41:31Z",
+  "result": {
+    "broker_verification": null,
+    "runtime_result": {
+      "runtime": {
+        "adapter": "codex",
+        "error_category": null,
+        "events_count": 7,
+        "exit_code": 0,
+        "is_error": false,
+        "malformed_event_lines": 0,
+        "process_exit_code": 0,
+        "runtime_description": "Codex via codex exec",
+        "stderr_tail": "Reading additional input from stdin...\n",
+        "summary": "alpha.txt",
+        "thread_id": "019f61b5-7cba-7790-9d37-076425f4fbb0",
+        "usage": {
+          "cached_input_tokens": 19968,
+          "input_tokens": 23302,
+          "output_tokens": 102,
+          "reasoning_output_tokens": 8
+        },
+        "verification": {
+          "source": "runtime_reported",
+          "tests_broker_verified": false
+        }
+      },
+      "state": "succeeded",
+      "summary": "alpha.txt",
+      "task_id": "tsk_f0b1194ee37a41209520d87afe487ae9"
+    },
+    "state": "succeeded",
+    "task_id": "tsk_f0b1194ee37a41209520d87afe487ae9",
+    "verification_gate": null
+  },
+  "task": {
+    "execution_mode": "read_only",
+    "profile": "codex",
+    "prompt_summary": "Identify filename containing MARKER_ALPHA",
+    "timeout_seconds": 120
+  }
+}

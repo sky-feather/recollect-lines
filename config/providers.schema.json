@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Umi4Life/recollect-lines/config/providers.schema.json",
+  "title": "recollect-lines provider configuration",
+  "description": "Contract for the openai_compatible provider configuration file (JSON or YAML). This is a documentation/editor-integration artifact; the authoritative validator is recollect_lines.providers.validate_providers_document.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["providers"],
+  "properties": {
+    "providers": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z][a-z0-9_-]{0,62}$"
+      },
+      "additionalProperties": { "$ref": "#/$defs/provider" }
+    }
+  },
+  "$defs": {
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "base_url", "api_key_env", "default_model"],
+      "properties": {
+        "kind": {
+          "const": "openai-compatible"
+        },
+        "base_url": {
+          "type": "string",
+          "format": "uri",
+          "description": "http:// is only permitted for loopback hosts (127.0.0.1/localhost/::1), and only with allow_insecure_http: true. Remote endpoints must use https://."
+        },
+        "api_key_env": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9_]{0,126}$",
+          "description": "Name of an environment variable holding the credential. Never a literal secret value."
+        },
+        "default_model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "request_timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 120
+        },
+        "tls_verify": {
+          "type": "boolean",
+          "default": true
+        },
+        "allow_insecure_http": {
+          "type": "boolean",
+          "default": false
+        },
+        "ca_bundle": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Filesystem path to a custom CA bundle file. Never inline certificate/key content."
+        },
+        "estimated_cost_usd_upper_bound": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "chat_completions": { "type": "boolean", "const": true },
+            "structured_output": { "type": "boolean" },
+            "streaming": { "type": "boolean" },
+            "tool_calls": { "type": "boolean" },
+            "workspace_access": { "type": "boolean" },
+            "process_cancellation": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}
