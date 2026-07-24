@@ -10,6 +10,8 @@ Covers:
      Popen.wait().
   3. The Darwin/non-Linux time.monotonic_ns() start-identity fallback must
      never be treated as proof of death -- only "unknown".
+     (Platform-level proofs live in tests/liveness_contract.py, collected via
+     tests/test_durable_supervisor_conformance.py.)
   4. Cursor restart reconciliation must never finalize (release) a workspace
      from that unverifiable non-Linux fallback identity alone.
   5. status() must not serve a stale zero-byte artifact manifest for an
@@ -29,7 +31,6 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from recollect_lines.durable_runner import classify_process_identity, read_process_start_identity
 from recollect_lines.models import TaskRequest, TaskState
 from recollect_lines.service import Broker
 
@@ -204,47 +205,6 @@ class CollectDoesNotBlockOnALiveSubprocessTests(unittest.TestCase):
             self.assertEqual(collected.state, TaskState.SUCCEEDED)
         finally:
             broker.close()
-
-
-class NonLinuxStartIdentityFallbackTests(unittest.TestCase):
-    """Requirement 3: the Darwin/non-Linux time.monotonic_ns() fallback must
-    never be treated as proof of process identity/liveness.
-    """
-
-    def test_fallback_identity_of_a_live_process_is_never_reported_dead(self):
-        pid = os.getpid()  # this test process itself: guaranteed alive throughout
-        with mock.patch("recollect_lines.durable_runner.sys.platform", "darwin"):
-            captured_at_launch = read_process_start_identity(pid)
-            self.assertIsNotNone(captured_at_launch)
-            self.assertFalse(captured_at_launch.startswith("linux:"))
-
-            result = classify_process_identity(pid, captured_at_launch)
-
-        self.assertEqual(
-            result, "unknown",
-            "a live process re-read under the non-Linux fallback must never compare "
-            "equal to its own launch-time identity, but must also never be reported "
-            "'dead' from that guaranteed mismatch",
-        )
-
-    def test_a_genuinely_dead_pid_is_still_reported_dead_on_non_linux(self):
-        # A pid this test just reaped cannot belong to a live process (barring
-        # the OS immediately recycling the exact pid number, vanishingly
-        # unlikely in a short-lived test process).
-        proc = subprocess.Popen([sys.executable, "-c", "pass"])
-        proc.wait(timeout=5)
-        with mock.patch("recollect_lines.durable_runner.sys.platform", "darwin"):
-            result = classify_process_identity(proc.pid, f"darwin:pid={proc.pid}:monotonic=123")
-        self.assertEqual(result, "dead")
-
-    def test_linux_identity_comparison_is_unaffected(self):
-        if sys.platform != "linux":
-            self.skipTest("Linux-specific anti-PID-reuse identity check")
-        pid = os.getpid()
-        identity = read_process_start_identity(pid)
-        self.assertTrue(identity.startswith("linux:"))
-        self.assertEqual(classify_process_identity(pid, identity), "alive")
-        self.assertEqual(classify_process_identity(pid, "linux:boot=deadbeef:starttime=999999999"), "dead")
 
 
 class CursorDarwinFallbackReconciliationTests(unittest.TestCase):
