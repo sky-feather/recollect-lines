@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import os
-import signal
-import subprocess
 import time
 
 # ponytail: a flag-name heuristic, not exhaustive secret scanning. Nothing in
@@ -63,35 +61,3 @@ def group_dead_within(pgid: int, timeout: float, interval: float = 0.05) -> bool
             return False
         time.sleep(interval)
     return True
-
-
-def cancel_process_group(popen: subprocess.Popen, pgid: int, grace_period_seconds: float) -> dict:
-    """Shared SIGTERM-then-SIGKILL process-group cancellation.
-
-    Used by every subprocess-backed adapter so the broker's process-group
-    cancellation contract has exactly one implementation, never a per-adapter
-    reinvention.
-    """
-    signals_sent = []
-    try:
-        os.killpg(pgid, signal.SIGTERM)
-        signals_sent.append("SIGTERM")
-    except ProcessLookupError:
-        pass
-    try:
-        popen.wait(timeout=grace_period_seconds)
-    except subprocess.TimeoutExpired:
-        pass
-    group_terminated = group_dead_within(pgid, timeout=1.0)
-    if not group_terminated:
-        try:
-            os.killpg(pgid, signal.SIGKILL)
-            signals_sent.append("SIGKILL")
-        except ProcessLookupError:
-            pass
-        try:
-            popen.wait(timeout=grace_period_seconds)
-        except subprocess.TimeoutExpired:
-            pass
-        group_terminated = group_dead_within(pgid, timeout=2.0)
-    return {"signals_sent": signals_sent, "group_terminated": group_terminated, "exit_code": popen.returncode}

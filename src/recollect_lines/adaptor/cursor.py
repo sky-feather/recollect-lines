@@ -19,26 +19,15 @@ cancellation, restart adoption, collection) is owned by the broker and by
 `durable_cli_launch`/`durable_runner.DurableSubprocessRunner`, which the
 broker constructs once and injects here via `durable_runner=`.
 
-Legacy transition path: `legacy_popen_launch=True` (never the default, never
-selected implicitly) restores the pre-RFC-004 direct-Popen lifecycle. It
-exists only because `_reconcile_cursor_legacy_subprocess`
-(service.py) -- the leader PID+start-identity restart-safety fix from
-docs/history/phases/phase-7c5-cursor-uncollected.md and the RFC-004 P0 slice
-(#67) -- is exercised end-to-end by compatibility tests
-(tests/test_cursor_uncollected_reconciliation.py,
-tests/test_p0_containment.py::CursorDarwinFallbackReconciliationTests) that
-predate the durable migration and still guard that broker-side safety logic
-against a real leader+lingering-helper process tree. New callers must never
-opt into it; it is dead in the default production `delegate` path.
+Historical `legacy_subprocess` launch records remain a broker/store recovery
+concern during their sunset window. This adapter cannot create one and owns no
+compatibility process handle.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import re
-import subprocess
-from dataclasses import dataclass
 from pathlib import Path
 
 from ..durable_cli_launch import (
@@ -47,12 +36,12 @@ from ..durable_cli_launch import (
     collect_durable_cli_launch,
     start_durable_cli_launch,
 )
-from ..durable_runner import DurableSubprocessRunner, read_process_start_identity
+from ..durable_runner import DurableSubprocessRunner
 from ..models import TaskRecord
 from ..recovery_contract import DURABLE_SUBPROCESS_RECOVERY_CONTROL
 from .cli_base import SubprocessCliAdapterBase, probe_cli_version
 from .contracts import AdapterCapabilities, LaunchSpec
-from .process import cancel_process_group
+
 
 DEFAULT_COMMAND_PREFIX = ("cursor-agent",)
 DEFAULT_GRACE_PERIOD_SECONDS = 10.0
@@ -99,19 +88,6 @@ def _classify_runtime_error(message: str) -> str:
     return "runtime_error"
 
 
-@dataclass
-class ProcessHandle:
-    """Legacy direct-Popen handle -- only produced when `legacy_popen_launch=True`."""
-
-    task_id: str
-    pid: int
-    pgid: int
-    command: list
-    stdout_path: Path
-    stderr_path: Path
-    popen: subprocess.Popen
-
-
 class CursorAdapter(SubprocessCliAdapterBase):
     name = "cursor"
     capabilities = AdapterCapabilities(
@@ -130,17 +106,13 @@ class CursorAdapter(SubprocessCliAdapterBase):
         grace_period_seconds: float = DEFAULT_GRACE_PERIOD_SECONDS,
         *,
         durable_runner: DurableSubprocessRunner | None = None,
-        legacy_popen_launch: bool = False,
     ):
         self.command_prefix = tuple(command_prefix)
         self.model = model
         self.grace_period_seconds = grace_period_seconds
         # Broker-owned and broker-injected (see Broker.__init__); this adapter
-        # never constructs one itself. Only used when legacy_popen_launch is False.
+        # never constructs one itself.
         self.durable_runner = durable_runner
-        # Never True by default and never flipped implicitly anywhere in this
-        # module or in service.py -- see the module docstring.
-        self.legacy_popen_launch = legacy_popen_launch
 
     @property
     def runtime_label(self) -> str:
@@ -184,8 +156,6 @@ class CursorAdapter(SubprocessCliAdapterBase):
         return LaunchSpec(argv=tuple(command), cwd=effective_workspace)
 
     def start(self, record: TaskRecord, artifacts_dir: Path, workspace: str | None = None, *, prompt: str | None = None):
-        if self.legacy_popen_launch:
-            return self._start_legacy_popen(record, artifacts_dir, workspace, prompt=prompt)
         if self.durable_runner is None:
             raise RuntimeError(
                 "CursorAdapter.durable_runner is unset; the owning Broker must inject one before start()"
@@ -202,14 +172,10 @@ class CursorAdapter(SubprocessCliAdapterBase):
         }
         return metadata, handle
 
-    def cancel(self, handle) -> dict:
-        if isinstance(handle, ProcessHandle):
-            return cancel_process_group(handle.popen, handle.pgid, self.grace_period_seconds)
+    def cancel(self, handle: DurableCliHandle) -> dict:
         return cancel_durable_cli_launch(handle)
 
-    def collect(self, handle) -> dict:
-        if isinstance(handle, ProcessHandle):
-            return self._collect_legacy_popen(handle)
+    def collect(self, handle: DurableCliHandle) -> dict:
         return collect_durable_cli_launch(handle, parse_result=self.parse_result)
 
     def parse_result(self, *, stdout_text: str, stderr_text: str, process_exit_code: int) -> dict:
@@ -264,60 +230,3 @@ class CursorAdapter(SubprocessCliAdapterBase):
             "stderr_tail": redact_secrets(stderr_text[-4000:]),
             "verification": {"tests_broker_verified": False, "source": "runtime_reported"},
         }
-
-    # --- legacy direct-Popen transition path (see module docstring) ---------
-
-    def _start_legacy_popen(self, record: TaskRecord, artifacts_dir: Path, workspace: str | None, *, prompt: str | None):
-        artifacts_dir.mkdir(parents=True, exist_ok=True)
-        stdout_path = artifacts_dir / "stdout.log"
-        stderr_path = artifacts_dir / "stderr.log"
-        effective_workspace = workspace or record.workspace
-        command = self.build_command(
-            prompt or record.task, record.execution_mode, effective_workspace, model=record.effective_model,
-        )
-        with stdout_path.open("wb") as stdout_file, stderr_path.open("wb") as stderr_file:
-            popen = subprocess.Popen(
-                command,
-                stdin=subprocess.DEVNULL,
-                stdout=stdout_file,
-                stderr=stderr_file,
-                cwd=effective_workspace,
-                start_new_session=True,
-            )
-        pgid = os.getpgid(popen.pid)
-        # Anti-PID-reuse leader identity (same mechanism as the durable subprocess
-        # runner, see durable_runner.read_process_start_identity), persisted so a
-        # replacement broker can later prove the leader is dead without trusting
-        # process-group liveness alone — a reparented same-PGID Cursor helper can
-        # outlive the leader by minutes (docs/history/phases/phase-7c5-cursor-uncollected.md).
-        # None only if the identity read races the leader's own exit; reconciliation
-        # then falls back to the conservative recovery_required path, never death.
-        leader_start_identity = read_process_start_identity(popen.pid)
-        handle = ProcessHandle(
-            task_id=record.id,
-            pid=popen.pid,
-            pgid=pgid,
-            command=command,
-            stdout_path=stdout_path,
-            stderr_path=stderr_path,
-            popen=popen,
-        )
-        metadata = {
-            "adapter": self.name,
-            "runtime_description": RUNTIME_DESCRIPTION,
-            "command": command,
-            "pid": popen.pid,
-            "pgid": pgid,
-            "leader_start_identity": leader_start_identity,
-            "events_artifact": stdout_path.name,
-            "stderr_artifact": stderr_path.name,
-            "workspace": effective_workspace,
-            "sandbox": SANDBOX_BY_EXECUTION_MODE[record.execution_mode],
-        }
-        return metadata, handle
-
-    def _collect_legacy_popen(self, handle: ProcessHandle) -> dict:
-        process_exit_code = handle.popen.wait()
-        raw_stdout = handle.stdout_path.read_text(errors="replace") if handle.stdout_path.exists() else ""
-        stderr_text = handle.stderr_path.read_text(errors="replace") if handle.stderr_path.exists() else ""
-        return self.parse_result(stdout_text=raw_stdout, stderr_text=stderr_text, process_exit_code=process_exit_code)

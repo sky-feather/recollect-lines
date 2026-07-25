@@ -18,12 +18,7 @@ capture, cancellation, restart adoption, collection) is owned by the broker
 and by `durable_cli_launch`/`durable_runner.DurableSubprocessRunner`, which
 the broker constructs once and injects here via `durable_runner=`.
 
-Unlike Cursor, Codex has no adapter-specific restart-reconciliation quirk to
-preserve (Cursor's `legacy_popen_launch=True` transition path exists solely to
-keep exercising `_reconcile_cursor_legacy_subprocess`'s leader
-PID+start-identity fix against a real process tree -- see adaptor/cursor.py's
-module docstring). No compatibility test depends on a Codex-owned Popen
-lifecycle, so this adapter carries no legacy path at all: `start()`/
+This adapter carries no direct-Popen compatibility route: `start()`/
 `cancel()`/`collect()` always go through the durable supervisor.
 
 Codex's `--json` flag makes its terminal stdout *be* the JSONL event stream,

@@ -60,7 +60,7 @@ class AdaptorPackageTests(unittest.TestCase):
             "CodexAdapter",
             "CursorAdapter",
             "FixtureDurableAdapter",
-            "cancel_process_group",
+
             "group_alive",
             "redact_command",
         }
@@ -82,8 +82,8 @@ class AdaptorPackageTests(unittest.TestCase):
 
     # test_process_helpers_exported_from_package retired (RFC-004
     # durable-opencode slice): it asserted that adaptor.opencode re-exported
-    # the generic process helpers (cancel_process_group/group_alive/
-    # redact_command) it happened to import for its own pre-durable Popen
+    # generic process helpers it happened to import for its own pre-durable
+    # Popen lifecycle. Runtime modules no longer expose that implementation
     # lifecycle. The durable OpenCodeAdapter no longer touches a process
     # directly (see adaptor/opencode.py's module docstring) and so no longer
     # imports them -- matching adaptor/codex.py and adaptor/claude_code.py,
