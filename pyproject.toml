@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "recollect-lines"
-version = "0.1.0a1"
+version = "0.1.0a2"
 description = "Local-first broker for delegating agent work and recollecting evidence-backed results"
 readme = "README.md"
 license = "MIT"

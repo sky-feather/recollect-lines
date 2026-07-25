@@ -1,8 +1,10 @@
 # Recollect Lines
 
-> **Alpha / pre-production:** The public PyPI distribution (`0.1.0a1`) is an
-> early alpha, not a stable or production-certified release. Behavior and APIs
-> may change; use source installs or TestPyPI only when you accept that risk.
+> **Alpha / pre-production:** `0.1.0a1` is published on **TestPyPI only**
+> (production PyPI has no release yet). `0.1.0a2` is the current durable-only
+> release candidate, packaged but not yet published anywhere; publication is a
+> separate, manually authorized step. Behavior and APIs may change; use source
+> installs or TestPyPI only when you accept that risk.
 
 > Recollect Lines is a local-first delegation broker that lets a parent agent safely hand bounded work to existing AI coding runtimes and receive attributable, evidence-backed results.
 
@@ -57,8 +59,10 @@ Operator / parent agent
 
 ## Fastest way to try it
 
-**Python 3.11+.** Install from source today; PyPI alpha (`0.1.0a1`) is
-packaged but not yet published to production PyPI:
+**Python 3.11+.** Install from source today; `0.1.0a2` is packaged as a
+durable-only release candidate but not yet published to TestPyPI or
+production PyPI (`0.1.0a1` remains the only version published, and only on
+TestPyPI):
 
 ```bash
 # Source (always works)
@@ -70,11 +74,12 @@ recollect-lines --help
 recollect-mcp --help
 ```
 
-After maintainers publish to **TestPyPI**, install with the main index for
-dependencies (see [docs/release-guide.md](docs/release-guide.md)):
+After maintainers publish `0.1.0a2` to **TestPyPI** (a separate, manually
+authorized step — see [docs/release-guide.md](docs/release-guide.md)),
+install with the main index for dependencies:
 
 ```bash
-pip install recollect-lines==0.1.0a1 \
+pip install recollect-lines==0.1.0a2 \
   --extra-index-url https://test.pypi.org/simple/
 ```
 
@@ -143,7 +148,7 @@ Generic MCP host config:
 | Broker-verified verification gate | Supported, opt-in per task |
 | Post-restart reconciliation | Supported; no full result recovery |
 | In-flight message steering | Not supported (explicit refusal) |
-| PyPI package | Alpha `0.1.0a1` prepared; production PyPI not published yet |
+| PyPI package | `0.1.0a1` published on TestPyPI; `0.1.0a2` (durable-only) prepared but not yet published anywhere; production PyPI not published yet |
 
 Canonical design: [docs/design/PRD.md](docs/design/PRD.md), [docs/design/RFC-001.md](docs/design/RFC-001.md), [docs/design/RFC-002.md](docs/design/RFC-002.md).
 

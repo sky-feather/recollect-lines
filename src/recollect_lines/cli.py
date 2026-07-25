@@ -37,10 +37,12 @@ from .model_profile import ModelProfileValidationError, normalize_model_profile
 from .cost_rework_policy import CostReworkPolicyValidationError, normalize_cost_rework_policy, normalize_rework_metadata
 from .providers import OPERATOR_CONFIG_DIRNAME, ProviderConfigError, resolve_providers_config_source, write_local_config_file
 from .service import Broker
+from . import __version__
 
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="recollect-lines")
+    p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     p.add_argument("--home", type=Path, default=Path(".recollect"))
     p.add_argument(
         "--opencode-command", default=None,

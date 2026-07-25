@@ -12,7 +12,11 @@ Start with [operator-guide.md](operator-guide.md) for what Recollect Lines is (a
 - **Git** (for `isolated_worktree` tasks and acceptance fixtures)
 - A supported **runtime CLI** on `PATH` only if you delegate to that profile (e.g. `codex` for `--profile codex`)
 
-Recollect Lines is **not published on PyPI** as of this writing. Install from a repository checkout.
+Recollect Lines `0.1.0a1` is published on **TestPyPI only**; production PyPI
+has no release. `0.1.0a2` (durable-only) is prepared but not yet published
+anywhere. Install from a repository checkout, or see
+[release-guide.md](release-guide.md) for the TestPyPI install command once
+`0.1.0a2` is published.
 
 ## Install from source
 

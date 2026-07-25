@@ -58,11 +58,12 @@ from .adaptor.opencode import OpenCodeAdapter
 from .operator_control import OperatorControlRefused
 from .providers import resolve_providers_config_source
 from .service import Broker
+from . import __version__
 
 PROTOCOL_VERSION = "2025-06-18"
 SUPPORTED_PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
 SERVER_NAME = "recollect-lines-mcp"
-SERVER_VERSION = "0.1.0a1"
+SERVER_VERSION = __version__
 ENVELOPE_VERSION = 1
 
 PARSE_ERROR = -32700

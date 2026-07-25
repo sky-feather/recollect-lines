@@ -4,9 +4,19 @@ This document covers **TestPyPI** and future **production PyPI** releases for
 `recollect-lines`. Normal CI builds and validates distributions but **never
 publishes**. Publishing is manual, opt-in, and environment-gated.
 
-**Current distribution:** `0.1.0a1` — an **alpha / pre-production** release.
-It is not production-certified or stable. Install only when you accept that
-risk.
+**Current distribution:** `0.1.0a1` is published on **TestPyPI only**;
+production PyPI has no release. `0.1.0a2` is the current **durable-only
+release candidate** — packaged in this repository but not yet published
+anywhere. Both are **alpha / pre-production**, not production-certified or
+stable. Install only when you accept that risk.
+
+Publishing `0.1.0a2` to TestPyPI is a **separate, manually authorized action**
+(workflow_dispatch with an explicit confirmation, see §3) — merging packaging
+changes does not publish anything. The RFC-004 legacy-reader sunset
+observation window (see `docs/design/RFC-004.md`, P3.3 retirement criteria)
+begins only after a durable-only build is actually **deployed to a given
+broker home**, not at merge or at publish time; each supported broker home
+starts its own window when that home is upgraded.
 
 ## Version immutability
 
@@ -73,7 +83,7 @@ not on TestPyPI by default, so use the main index for dependencies:
 python3 -m venv /tmp/recollect-testpypi
 source /tmp/recollect-testpypi/bin/activate
 pip install --upgrade pip
-pip install recollect-lines==0.1.0a1 \
+pip install recollect-lines==0.1.0a2 \
   --extra-index-url https://test.pypi.org/simple/
 recollect-lines --help
 recollect-mcp --help
