@@ -10,6 +10,7 @@ adapter's start() metadata omits it.
 
 from __future__ import annotations
 
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,6 +19,23 @@ from recollect_lines.adaptor.cursor import CursorAdapter
 from recollect_lines.durable_reconciliation import LAUNCH_KIND_DIRECT_API, LAUNCH_KIND_DURABLE, LAUNCH_KIND_LEGACY
 from recollect_lines.models import TaskRequest
 from recollect_lines.service import Broker
+
+
+def run_git(args, cwd):
+    result = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+    assert result.returncode == 0, f"git {args} failed: {result.stderr}"
+    return result
+
+
+def init_repo(path: Path) -> Path:
+    path.mkdir(parents=True, exist_ok=True)
+    run_git(["init", "-q"], cwd=path)
+    run_git(["config", "user.email", "test@example.com"], cwd=path)
+    run_git(["config", "user.name", "Test"], cwd=path)
+    (path / "file.txt").write_text("original\n")
+    run_git(["add", "-A"], cwd=path)
+    run_git(["commit", "-q", "-m", "initial"], cwd=path)
+    return path
 
 
 class _AdapterMissingLaunchKind(CursorAdapter):
@@ -121,6 +139,46 @@ class ProductionDispatchFailsClosedTests(unittest.TestCase):
             self.broker.start(record.id)
         # Fail closed means nothing was ever persisted as legacy_subprocess by mistake.
         self.assertIsNone(self.broker.store.get_launch(record.id))
+        # And the task must not be left wedged: no leaked in-memory process handle
+        # (which would make every future reconcile() short-circuit on this task
+        # forever), and no permanently-held workspace lease.
+        self.assertNotIn(record.id, self.broker._process_handles)
+        self.assertIsNone(self.broker.store.get_lease(record.id))
+
+
+class ProductionDispatchFailsClosedIsolatedWorktreeTests(unittest.TestCase):
+    """Same contract-violation scenario, but under isolated_worktree, where a
+    leaked lease would permanently block every future writer against this
+    source -- not just wedge the one task.
+    """
+
+    def setUp(self):
+        self.tempdir = tempfile.TemporaryDirectory()
+        self.home = Path(self.tempdir.name) / "broker"
+        self.source = init_repo(Path(self.tempdir.name) / "source")
+        self.broker = Broker(self.home, cursor_adapter=_AdapterMissingLaunchKind())
+
+    def tearDown(self):
+        self.broker.close()
+        self.tempdir.cleanup()
+
+    def test_missing_launch_kind_releases_the_worktree_lease_instead_of_blocking_it_forever(self):
+        record = self.broker.create(
+            TaskRequest("inspect", str(self.source), profile="cursor", execution_mode="isolated_worktree")
+        )
+        with self.assertRaises(RuntimeError):
+            self.broker.start(record.id)
+        self.assertEqual(self.broker.store.get_lease(record.id)["status"], "released")
+        self.assertNotIn(record.id, self.broker._process_handles)
+
+        # The real proof the lease was released: a second task against the same
+        # source can still acquire a worktree afterwards.
+        second = self.broker.create(
+            TaskRequest("inspect again", str(self.source), profile="cursor", execution_mode="isolated_worktree")
+        )
+        with self.assertRaises(RuntimeError):
+            self.broker.start(second.id)
+        self.assertEqual(self.broker.store.get_lease(second.id)["status"], "released")
 
 
 if __name__ == "__main__":
