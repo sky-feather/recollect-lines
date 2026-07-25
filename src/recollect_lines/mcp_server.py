@@ -371,7 +371,13 @@ def handle_delegate_batch(broker: Broker, args: dict) -> dict:
 
 
 def handle_status(broker: Broker, args: dict) -> dict:
-    return broker.status(_require_task_id(args))
+    task_id = _require_task_id(args)
+    # State alone is intentionally not a command: expose the fail-closed
+    # recovery posture and allowed next operations alongside every status read.
+    return {
+        **broker.status(task_id),
+        "operator_control": broker.operator_control_view(task_id),
+    }
 
 
 def handle_collect(broker: Broker, args: dict) -> dict:
@@ -396,6 +402,7 @@ def handle_collect(broker: Broker, args: dict) -> dict:
         "normalized_summary": concise_normalized_view(normalized),
         "broker_verification": _read_json_artifact(broker, task_id, "verification.json"),
         "verification_gate": {**gate, "label": verification_gate_label(gate)} if gate else None,
+        "operator_control": broker.operator_control_view(task_id),
     }
 
 

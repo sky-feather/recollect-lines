@@ -131,6 +131,11 @@ class McpServerTests(unittest.TestCase):
         status = self.client.call_tool("status", {"task_id": task_id})
         status_payload = json.loads(status["result"]["content"][0]["text"])
         self.assertEqual(status_payload["data"]["state"], "running")
+        guidance = status_payload["data"]["operator_control"]
+        self.assertEqual(guidance["task_state"], "running")
+        self.assertEqual(guidance["recovery_posture"], "observed")
+        self.assertIn("distinction", guidance)
+        self.assertIn("status", guidance["permitted_actions"])
         self.assertEqual([event["type"] for event in status_payload["data"]["events"]], ["task.created", "task.queued", "task.preparing", "task.running"])
 
         # Mock profile never registers a process handle, so collect deterministically reaches
@@ -140,6 +145,9 @@ class McpServerTests(unittest.TestCase):
         self.assertFalse(collected["result"]["isError"])
         self.assertEqual(collected_payload["data"]["state"], "failed")
         self.assertIsNone(collected_payload["data"]["runtime_result"])
+        collected_guidance = collected_payload["data"]["operator_control"]
+        self.assertEqual(collected_guidance["task_state"], "failed")
+        self.assertEqual(collected_guidance["recovery_posture"], "terminal")
 
     def test_mcp_root_delegate_defaults_origin_kind_host(self):
         self.initialize()
