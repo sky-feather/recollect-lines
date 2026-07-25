@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .models import ALLOWED_TRANSITIONS, InvalidTransition, TaskRecord, TaskState, WorkspaceLeaseConflict, now
-from .durable_reconciliation import DEFAULT_LEASE_TTL_SECONDS, LAUNCH_KIND_LEGACY
+from .durable_reconciliation import DEFAULT_LEASE_TTL_SECONDS, KNOWN_LAUNCH_KINDS, LAUNCH_KIND_DURABLE
 
 
 class TaskStore:
@@ -379,8 +379,8 @@ class TaskStore:
     def record_launch(
         self, task_id: str, *, adapter: str, adapter_label: str, pid: int | None, pgid: int | None,
         command: list[str], workspace: str, events_artifact: str | None, stderr_artifact: str | None,
+        launch_kind: str,
         durable_launch_id: str | None = None,
-        launch_kind: str = LAUNCH_KIND_LEGACY,
         leader_start_identity: str | None = None,
     ) -> None:
         """Persist durable launch identity the moment an adapter process is actually spawned.
@@ -390,7 +390,17 @@ class TaskStore:
         (see durable_runner.read_process_start_identity), currently only populated by
         CursorAdapter.start() — None for every other adapter, which is fine: reconcile()
         only reads it back on the Cursor-only leader-identity path.
+
+        `launch_kind` has no default: every caller must state explicitly what it is
+        persisting (RFC-004 sunset guard — implicit `legacy_subprocess` selection is
+        exactly the hazard this argument closes off). `durable_subprocess` additionally
+        requires a non-null `durable_launch_id`; both are fail-closed here rather than
+        left to whichever caller forgets one.
         """
+        if launch_kind not in KNOWN_LAUNCH_KINDS:
+            raise ValueError(f"Unknown launch_kind: {launch_kind!r}")
+        if launch_kind == LAUNCH_KIND_DURABLE and not durable_launch_id:
+            raise ValueError("durable_subprocess launches must be recorded with a non-null durable_launch_id")
         with self.connection:
             self.connection.execute(
                 "INSERT INTO runtime_launches "

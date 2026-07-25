@@ -15,6 +15,7 @@ from .capability_contract import describe_unsupported_execution_mode, materializ
 from .capability_contract_result import STATUS_UNSATISFIED, evaluate_capability_contract
 from .durable_reconciliation import (
     AdoptedDurableHandle,
+    LAUNCH_KIND_DIRECT_API,
     LAUNCH_KIND_DURABLE,
     ReconcileDetail,
     ReconcileOutcome,
@@ -1080,6 +1081,7 @@ class Broker:
                 workspace=metadata["workspace"],
                 events_artifact=metadata["events_artifact"],
                 stderr_artifact=metadata["stderr_artifact"],
+                launch_kind=LAUNCH_KIND_DIRECT_API,
             )
             self.store.refresh_manifest(record.id)
             metadata = {**metadata, "model_selection": model_evidence}
@@ -1092,6 +1094,18 @@ class Broker:
                 metadata, handle = adapter.start(
                     record, self.store.artifacts / record.id, workspace=effective_workspace, prompt=launch_prompt,
                 )
+                # Every adapter.start() must state launch_kind explicitly (RFC-004
+                # sunset guard) — there is no implicit fallback to legacy_subprocess
+                # here. The four production CLI adapters always report
+                # durable_subprocess via start_durable_cli_launch(); only the
+                # test-only historical fixture reports legacy_subprocess, solely to
+                # exercise the broker's compatibility reader. This check must stay
+                # inside the try so a violation is cleaned up exactly like any other
+                # adapter.start() failure below, instead of wedging the task forever
+                # in PREPARING with a leaked process handle and (for isolated
+                # worktrees) a lease that's never released.
+                if "launch_kind" not in metadata:
+                    raise RuntimeError(f"{adapter.name} adapter.start() metadata is missing launch_kind")
             except Exception:
                 # A losing writer never allocates, but a *successful* allocation
                 # whose adapter then fails to launch must still give up its lease —
@@ -1107,7 +1121,7 @@ class Broker:
             # on the very next line.
             stored_command = (
                 ["<durable-subprocess>", adapter.name]
-                if metadata.get("launch_kind") == LAUNCH_KIND_DURABLE
+                if metadata["launch_kind"] == LAUNCH_KIND_DURABLE
                 else redact_command(metadata["command"])
             )
             self.store.record_launch(
@@ -1121,7 +1135,7 @@ class Broker:
                 events_artifact=metadata["events_artifact"],
                 stderr_artifact=metadata["stderr_artifact"],
                 durable_launch_id=metadata.get("durable_launch_id"),
-                launch_kind=metadata.get("launch_kind", "legacy_subprocess"),
+                launch_kind=metadata["launch_kind"],
                 leader_start_identity=metadata.get("leader_start_identity"),
             )
             self.store.refresh_manifest(record.id)

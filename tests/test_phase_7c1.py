@@ -8,12 +8,15 @@ import os
 import signal
 import sys
 import tempfile
+import time
 import unittest
 import warnings
 from pathlib import Path
 
 from recollect_lines.discovery import discover_runtimes
 from recollect_lines.doctor import run_doctor
+from recollect_lines.durable_cli_launch import TERMINAL_LAUNCH_STATES
+from recollect_lines.durable_runner import load_launch_record
 from recollect_lines.mcp_server import handle_discover_capabilities, handle_message
 from recollect_lines.adaptor.opencode import OpenCodeAdapter
 from recollect_lines.recovery_contract import (
@@ -45,6 +48,17 @@ FIXTURE_EVIDENCE = Path(__file__).parent / "fixtures" / "phase_7c1_compat_eviden
 
 
 def kill_launch_pgid(broker: Broker, task_id: str) -> None:
+    """Kill the launch's process group and block until the durable supervisor
+    has committed a terminal manifest state.
+
+    SIGKILL-ing the payload only proves the payload is gone -- the durable
+    supervisor (a separate forked process; see durable_runner._supervise_main)
+    still reaps it and atomically rewrites the launch manifest afterwards.
+    Returning before that write lands races the caller's
+    `TemporaryDirectory.cleanup()` against the supervisor's mkstemp+rename
+    into the same launch dir, which can raise ENOTEMPTY (Directory not
+    empty) during teardown.
+    """
     launch = broker.store.get_launch(task_id)
     if not launch:
         return
@@ -56,6 +70,19 @@ def kill_launch_pgid(broker: Broker, task_id: str) -> None:
         os.waitpid(launch["pid"], 0)
     except ChildProcessError:
         pass
+    durable_launch_id = launch.get("durable_launch_id")
+    if not durable_launch_id:
+        return
+    manifest_path = broker.store.home / "durable_launches" / durable_launch_id / "manifest.json"
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline:
+        try:
+            if load_launch_record(manifest_path).lifecycle_state in TERMINAL_LAUNCH_STATES:
+                return
+        except (OSError, ValueError):
+            pass
+        time.sleep(0.02)
+    raise AssertionError(f"durable launch {durable_launch_id} never reached a terminal manifest state after SIGKILL")
 
 
 def fake_opencode_adapter() -> OpenCodeAdapter:
@@ -285,6 +312,31 @@ class DiscoveryDoctorMcpVisibilityTests(unittest.TestCase):
         finally:
             kill_launch_pgid(broker2, record_id)
             broker2.close()
+
+    def test_kill_launch_pgid_blocks_until_durable_manifest_is_terminal(self):
+        # Regression for the tearDown ENOTEMPTY race: the durable supervisor
+        # (a separate forked process) reaps the SIGKILL'd payload and then
+        # atomically rewrites the launch manifest itself -- if kill_launch_pgid
+        # returned before that write landed, the immediately-following
+        # TemporaryDirectory.cleanup() in tearDown could race the supervisor's
+        # mkstemp+rename into the same launch dir and raise
+        # `OSError: [Errno 39] Directory not empty`. This asserts the
+        # observable condition that closes that window: by the time
+        # kill_launch_pgid returns, the manifest is provably terminal.
+        from recollect_lines.models import TaskRequest
+
+        broker = Broker(self.home, opencode_adapter=fake_opencode_adapter())
+        record = broker.create(TaskRequest(
+            task="SLEEP", workspace=str(self.home), profile="opencode", execution_mode="read_only",
+        ))
+        broker.start(record.id)
+        launch = broker.store.get_launch(record.id)
+        manifest_path = self.home / "durable_launches" / launch["durable_launch_id"] / "manifest.json"
+
+        kill_launch_pgid(broker, record.id)
+
+        self.assertIn(load_launch_record(manifest_path).lifecycle_state, TERMINAL_LAUNCH_STATES)
+        broker.close()
 
 if __name__ == "__main__":
     unittest.main()

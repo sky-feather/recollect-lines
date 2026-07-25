@@ -39,6 +39,11 @@ from .models import now
 
 LAUNCH_KIND_DURABLE = "durable_subprocess"
 LAUNCH_KIND_LEGACY = "legacy_subprocess"
+# Direct API launches spawn no subprocess at all (no PID, no durable launch
+# supervisor); this exists so `TaskStore.record_launch` never has to guess a
+# subprocess launch_kind for a non-subprocess runtime.
+LAUNCH_KIND_DIRECT_API = "direct_api"
+KNOWN_LAUNCH_KINDS = frozenset({LAUNCH_KIND_DURABLE, LAUNCH_KIND_LEGACY, LAUNCH_KIND_DIRECT_API})
 DEFAULT_LEASE_TTL_SECONDS = 60.0
 BROKER_INSTANCE_FILE = "broker_instance.json"
 _COLLECT_REDACT_RE = re.compile(r"sk-[A-Za-z0-9_-]{4,}|rl_secret_sentinel\w*|RL_SECRET_SENTINEL", re.IGNORECASE)
