@@ -2030,6 +2030,12 @@ class Broker:
             {"reason": reason, "cancellation": cancellation},
         )
 
+    def operator_control_view(self, task_id: str) -> dict:
+        """Return action-safe lifecycle guidance without performing an operation."""
+        from .operator_control import build_operator_control_view
+
+        return build_operator_control_view(self, task_id)
+
     def operator_control(
         self,
         task_id: str,

@@ -93,6 +93,25 @@ Use `root_task_id` to walk one delegation tree by its broker identity. Use `exte
 
 This is what makes the Wave 0 dogfood incident un-repeatable: a `claude -p` run can exit 0 with a clean `is_error: false` result whose text is a meta-response asking which output format to use, rather than the requested JSON. `collect`/`status` then report `state: succeeded` (the process really did succeed) *and* `contract_status: unsatisfied_fallback` (the requested contract was not honored) as separate, equally authoritative fields — a caller must check `contract_status`, not just `state`, before trusting structured fields like `findings`.
 
+## Durable lifecycle guidance
+
+Every `status` and `collect` response now includes an `operator_control` object.
+It is a read-only, fail-closed guide; it does **not** perform recovery or cleanup.
+Use its `recovery_posture`, `permitted_actions`, and per-action refusal reasons
+instead of inferring liveness from a PID, an old event, or a raw launch record.
+
+| Task state / posture | Meaning | Safe next action |
+|---|---|---|
+| `running`, `collecting`, or `cancelling` / `observed` | The broker has an ordinary live lifecycle observation. | Poll `completion_events` or `status`; use only listed actions. `collect` is nonblocking and may return no terminal result yet. |
+| `recovery_required` / `recovery_required` | Liveness or durable adoption is uncertain after a restart or contested evidence. This is **not** success and is not proof of death. | Read `operator_control`; do not release a workspace or signal an unowned process. Use `control(action="status")`/`reconcile` only when listed as permitted. |
+| `uncollected` / `terminal` | The runtime exited but a legacy result was not recoverable. The outcome is unknown, not successful. | Inspect retained artifacts and verify the claimed side effect independently. Cleanup remains explicit. |
+| terminal / `terminal` | A terminal result was recorded. | Call `collect` for the normalized runtime result and broker verification. |
+
+`operator_control.distinction` describes the stable meanings of lifecycle state,
+recovery posture, and permitted actions. It lets a caller distinguish **still
+running**, **exited but not parsed**, and **unknown/recovery-required** without
+reading internal launch fields.
+
 ## Schema/prose conflict warning
 
 `delegate`/`delegate_batch` run a deterministic, advisory check at create time: if the task text reads as an open-ended, unstructured request (matching a small fixed vocabulary — e.g. "debate", "essay", "story") while a structured `result_schema` (`evidence-report`, `review-findings`, `implementation-report`, `verified-investigation-report`, `review-report`) was requested, the response and later `status` calls include a `schema_conflict_warning` object:
