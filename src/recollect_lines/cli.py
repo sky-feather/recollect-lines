@@ -399,6 +399,16 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Required with --execute-live: acknowledge paid/billed remote model calls",
     )
+    rollout = sub.add_parser(
+        "durable-rollout-report",
+        help="Read-only durable subprocess rollout latency and recovery summary",
+    )
+    rollout.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the machine-readable report (default is formatted JSON too)",
+    )
+
     return p
 
 
@@ -604,7 +614,10 @@ def main(argv: list[str] | None = None) -> int:
         agent_profiles_config=args.agent_profiles_config,
     )
     try:
-        if args.command == "create":
+        if args.command == "durable-rollout-report":
+            from .rollout_observability import durable_rollout_report
+            output = durable_rollout_report(broker.store)
+        elif args.command == "create":
             explicit_fields: set[str] = set()
             execution_mode = args.mode if args.mode is not None else "read_only"
             if args.mode is not None:

@@ -112,6 +112,21 @@ recovery posture, and permitted actions. It lets a caller distinguish **still
 running**, **exited but not parsed**, and **unknown/recovery-required** without
 reading internal launch fields.
 
+## Durable rollout report
+
+For a read-only rollout snapshot, run:
+
+```bash
+recollect-lines --home /path/to/.recollect durable-rollout-report --json
+```
+
+The report only summarizes persisted `durable_subprocess` launches. It reports
+the count and min/max/average time from the persisted `task.running` event to
+the first persisted terminal event, terminal outcomes by adapter, and durable
+recovery/adoption outcomes. This is **event-observation latency**, not a claim
+about provider execution time. It never starts, reconciles, cancels, or cleans
+up a task, and it does not select a legacy path.
+
 ## Schema/prose conflict warning
 
 `delegate`/`delegate_batch` run a deterministic, advisory check at create time: if the task text reads as an open-ended, unstructured request (matching a small fixed vocabulary — e.g. "debate", "essay", "story") while a structured `result_schema` (`evidence-report`, `review-findings`, `implementation-report`, `verified-investigation-report`, `review-report`) was requested, the response and later `status` calls include a `schema_conflict_warning` object:
