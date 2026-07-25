@@ -60,7 +60,6 @@ __all__ = [
     "RuntimeAdapter",
     "SubprocessCliAdapterBase",
     "probe_cli_version",
-
     "group_alive",
     "group_dead_within",
     "redact_command",

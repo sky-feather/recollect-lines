@@ -60,7 +60,6 @@ class AdaptorPackageTests(unittest.TestCase):
             "CodexAdapter",
             "CursorAdapter",
             "FixtureDurableAdapter",
-
             "group_alive",
             "redact_command",
         }

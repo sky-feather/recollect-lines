@@ -63,7 +63,6 @@ def fake_cursor_adapter(grace_period_seconds=2.0):
     return LegacyCursorFixtureAdapter(
         command_prefix=(sys.executable, str(FAKE_CURSOR)),
         grace_period_seconds=grace_period_seconds,
-
     )
 
 

@@ -12,7 +12,6 @@ from abc import ABC
 from collections.abc import Callable
 
 
-
 class SubprocessCliAdapterBase(ABC):
     """Optional base scaffolding for CLI adaptors with a command prefix and grace period."""
 
@@ -24,7 +23,6 @@ class SubprocessCliAdapterBase(ABC):
     def runtime_label(self) -> str:
         """A human-readable adapter/version label for durable launch records."""
         return self.command_prefix[-1] if self.command_prefix else self.name
-
 
 
 def probe_cli_version(
