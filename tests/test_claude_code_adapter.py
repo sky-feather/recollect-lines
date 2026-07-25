@@ -488,9 +488,7 @@ class ClaudeCodeUnsupportedPolicyBrokerTests(unittest.TestCase):
 
 
 class ClaudeCodeAdapterOwnsNoProcessLifecycleTests(unittest.TestCase):
-    """Required evidence: unlike Cursor (which keeps an explicitly-gated
-    `legacy_popen_launch=True` compatibility path for pre-migration tests),
-    Claude Code has no such compatibility route to preserve -- this adapter
+    """Required evidence: Claude Code has no compatibility route to preserve -- this adapter
     never touches `subprocess.Popen`, process waiting/polling, or process-group
     killing at all; all of that lifecycle belongs to durable_cli_launch /
     durable_runner.DurableSubprocessRunner.

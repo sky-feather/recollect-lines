@@ -54,16 +54,15 @@ def fake_codex_adapter(grace_period_seconds=2.0):
 
 
 def fake_cursor_adapter(grace_period_seconds=2.0):
-    from recollect_lines.adaptor.cursor import CursorAdapter
+    from tests.legacy_cursor_fixture import LegacyCursorFixtureAdapter
 
-    # legacy_popen_launch=True: CursorDarwinFallbackReconciliationTests below
-    # exercises the pre-RFC-004 direct-Popen lifecycle + leader
+    # CursorDarwinFallbackReconciliationTests below exercise a test-only
+    # pre-RFC-004 direct-Popen record + leader
     # PID+start-identity restart-safety fix on purpose -- see adaptor/cursor.py's
     # module docstring and test_cursor_uncollected_reconciliation.py.
-    return CursorAdapter(
+    return LegacyCursorFixtureAdapter(
         command_prefix=(sys.executable, str(FAKE_CURSOR)),
         grace_period_seconds=grace_period_seconds,
-        legacy_popen_launch=True,
     )
 
 
@@ -98,9 +97,8 @@ class ExitedInMemoryHandleReapTests(unittest.TestCase):
 
     Every production subprocess adapter is durable by default now (RFC-004
     durable-opencode slice was the last), so this generic (adapter-agnostic)
-    legacy-handle-reap coverage uses Cursor's test-only
-    `legacy_popen_launch=True` opt-in (see adaptor/cursor.py's module
-    docstring) rather than a real production adapter -- these tests never
+    legacy-handle-reap coverage uses tests.legacy_cursor_fixture rather than a
+    real production adapter -- these tests never
     reach the Cursor-specific restart-reconciliation branch (no broker
     restart is simulated here), so it exercises exactly the same generic
     Broker._reap_exited_process_handle()/collect() code path a legacy
@@ -171,8 +169,8 @@ class CollectDoesNotBlockOnALiveSubprocessTests(unittest.TestCase):
 
     def test_collect_on_a_live_process_returns_promptly_and_nonterminal(self):
         # Generic (adapter-agnostic) legacy-handle coverage, see
-        # ExitedInMemoryHandleReapTests' class docstring for why Cursor's
-        # test-only legacy_popen_launch=True stands in for OpenCode here.
+        # ExitedInMemoryHandleReapTests' class docstring for why the test-only
+        # legacy fixture stands in for OpenCode here.
         broker = Broker(self.home, cursor_adapter=fake_cursor_adapter())
         try:
             record = broker.create(TaskRequest("SLEEP", str(self.workspace), profile="cursor", execution_mode="read_only"))
@@ -277,8 +275,8 @@ class ActiveTaskArtifactManifestFreshnessTests(unittest.TestCase):
         # bytes already on disk there). A durable launch's stdout/stderr live
         # under home/durable_launches/<id>/, never under artifacts_dir, so no
         # production adapter is representative here anymore (every one is
-        # durable by default, RFC-004) -- Cursor's test-only
-        # legacy_popen_launch=True stands in instead, exactly as
+        # durable by default, RFC-004) -- the test-only legacy fixture stands
+        # in instead, exactly as
         # ExitedInMemoryHandleReapTests and CollectDoesNotBlockOnALiveSubprocessTests
         # above already do.
         broker = Broker(self.home, cursor_adapter=fake_cursor_adapter())

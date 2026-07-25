@@ -19,11 +19,8 @@ owned by the broker and by
 `durable_cli_launch`/`durable_runner.DurableSubprocessRunner`, which the
 broker constructs once and injects here via `durable_runner=`.
 
-No compatibility test depends on an OpenCode-owned Popen lifecycle (unlike
-Cursor's narrow, test-only `legacy_popen_launch=True` transition path -- see
-adaptor/cursor.py's module docstring), so this adapter carries no legacy path
-at all: `start()`/`cancel()`/`collect()` always go through the durable
-supervisor.
+This adapter carries no direct-Popen compatibility route: `start()`/
+`cancel()`/`collect()` always go through the durable supervisor.
 
 OpenCode's `--format json` flag makes its terminal stdout *be* the JSONL
 event stream, and this codebase's established public artifact name for that

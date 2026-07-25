@@ -39,7 +39,6 @@ from .cursor import (
     RUNTIME_DESCRIPTION as CURSOR_RUNTIME_DESCRIPTION,
     CursorAdapter,
     CursorUnsupportedPolicy,
-    ProcessHandle as CursorProcessHandle,
     redact_secrets as cursor_redact_secrets,
 )
 from .fixture_durable import FixtureDurableAdapter
@@ -50,7 +49,6 @@ from .opencode import (
     OpenCodeAdapter,
 )
 from .process import (
-    cancel_process_group,
     group_alive,
     group_dead_within,
     redact_command,
@@ -62,7 +60,6 @@ __all__ = [
     "RuntimeAdapter",
     "SubprocessCliAdapterBase",
     "probe_cli_version",
-    "cancel_process_group",
     "group_alive",
     "group_dead_within",
     "redact_command",
@@ -83,7 +80,6 @@ __all__ = [
     "CODEX_RUNTIME_DESCRIPTION",
     "codex_redact_secrets",
     "CursorAdapter",
-    "CursorProcessHandle",
     "CursorUnsupportedPolicy",
     "CURSOR_DEFAULT_COMMAND_PREFIX",
     "CURSOR_DEFAULT_GRACE_PERIOD_SECONDS",

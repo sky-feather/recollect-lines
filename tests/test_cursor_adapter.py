@@ -92,9 +92,9 @@ class CursorAdapterUnitTests(unittest.TestCase):
         self.assertFalse(CursorAdapter.capabilities.reports_broker_verified_tests)
         self.assertTrue(CursorAdapter.capabilities.uses_durable_subprocess_runner)
 
-    def test_default_adapter_never_opts_into_the_legacy_popen_path(self):
+    def test_adapter_exposes_no_legacy_popen_option(self):
         adapter = CursorAdapter()
-        self.assertFalse(adapter.legacy_popen_launch)
+        self.assertFalse(hasattr(adapter, "legacy_popen_launch"))
         self.assertIsNone(adapter.durable_runner)  # bound only by the owning Broker
 
     def test_build_launch_spec_is_a_provider_neutral_launch_spec(self):
@@ -253,9 +253,8 @@ class CursorBrokerIntegrationTests(unittest.TestCase):
         self.assertEqual(first.updated_at, second.updated_at)
 
     def test_collect_without_a_process_handle_reconciles_via_durable_adoption_not_uncollected(self):
-        # Unlike the legacy Popen path (see test_cursor_uncollected_reconciliation.py,
-        # which still covers the pre-migration `uncollected` outcome for the
-        # explicitly-gated legacy_popen_launch=True compatibility path), a
+        # Unlike persisted pre-migration records covered by the test-only
+        # compatibility fixture in test_cursor_uncollected_reconciliation.py, a
         # durable Cursor launch's outcome is never `uncollected` after a
         # broker restart: the manifest is independent, durable proof a fresh
         # broker can adopt and safely collect from, exactly like
@@ -325,13 +324,10 @@ class CursorUnsupportedPolicyBrokerTests(unittest.TestCase):
             adapter.build_command("do something", "shared_write", "/tmp/ws")
 
 
-class CursorLegacyPopenIsolationTests(unittest.TestCase):
-    """Required evidence: the legacy direct-Popen lifecycle exists only inside
-    the explicitly-gated, non-default transition path (`legacy_popen_launch=True`),
-    never in CursorAdapter's default production `start()`/`collect()`/`cancel()`.
-    """
+class CursorOwnsNoProcessLifecycleTests(unittest.TestCase):
+    """Cursor only builds launch specs and parses terminal output."""
 
-    def test_subprocess_popen_is_referenced_only_inside_the_gated_legacy_methods(self):
+    def test_adapter_does_not_reference_subprocess_popen(self):
         import ast
         import inspect
         from recollect_lines.adaptor import cursor as cursor_module
@@ -348,11 +344,13 @@ class CursorLegacyPopenIsolationTests(unittest.TestCase):
                         and child.func.attr == "Popen"
                     ):
                         functions_calling_popen.add(node.name)
-        self.assertEqual(functions_calling_popen, {"_start_legacy_popen"})
+        self.assertEqual(functions_calling_popen, set())
 
-    def test_default_start_path_never_selects_legacy_popen(self):
+    def test_adapter_has_no_legacy_producer_symbols(self):
         adapter = CursorAdapter()
-        self.assertFalse(adapter.legacy_popen_launch)
+        self.assertFalse(hasattr(adapter, "legacy_popen_launch"))
+        self.assertFalse(hasattr(adapter, "_start_legacy_popen"))
+        self.assertFalse(hasattr(adapter, "_collect_legacy_popen"))
 
 
 if __name__ == "__main__":
