@@ -177,6 +177,17 @@ class DirectApiBrokerTests(unittest.TestCase):
         self.assertEqual(result["runtime"]["adapter"], "openai_compatible")
         self.assertIn("limitations", result["runtime"])
 
+    def test_launch_record_is_explicitly_direct_api_not_legacy_subprocess(self):
+        # RFC-004 sunset guard: a direct-API launch spawns no subprocess at all
+        # (no pid, no durable supervisor) and must never be persisted under the
+        # legacy_subprocess default that record_launch used to fall back to.
+        record = self.create("What is 2+2?")
+        self.broker.start(record.id)
+        launch = self.broker.store.get_launch(record.id)
+        self.assertEqual(launch["launch_kind"], "direct_api")
+        self.assertIsNone(launch["pid"])
+        self.assertIsNone(launch["durable_launch_id"])
+
     def test_missing_secret_reference_fails_without_leaking(self):
         broker = Broker(self.home / "missing", providers_config=self.config_path, environ={})
         try:

@@ -12,7 +12,7 @@ from typing import Any
 
 from .models import TERMINAL_STATES
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def _parse_timestamp(value: str) -> datetime:
@@ -34,14 +34,25 @@ def durable_rollout_report(store: Any) -> dict[str, Any]:
     first terminal task event.  It is an event-observation latency, not a
     provider-reported duration and not a claim that the child ran for exactly
     that interval.
+
+    Also surfaces a ``legacy_subprocess_inventory`` count of already-persisted
+    pre-RFC-004 ``legacy_subprocess`` launch records, grouped by adapter and
+    task state. This is sunset-decision evidence only — see RFC-004 6.3/P3.3 —
+    and never chooses an adapter, reconciles anything, or removes a workspace.
     """
     by_adapter: dict[str, dict[str, Any]] = {}
     recovery_outcomes: Counter[str] = Counter()
     terminal_latencies: list[int] = []
     durable_tasks = 0
+    legacy_by_adapter: dict[str, Counter[str]] = {}
+    legacy_tasks = 0
 
     for record in store.list():
         launch = store.get_launch(record.id) or {}
+        if launch.get("launch_kind") == "legacy_subprocess":
+            legacy_tasks += 1
+            adapter = str(launch.get("adapter") or record.profile or "unknown")
+            legacy_by_adapter.setdefault(adapter, Counter())[str(record.state)] += 1
         if launch.get("launch_kind") != "durable_subprocess":
             continue
         durable_tasks += 1
@@ -90,4 +101,11 @@ def durable_rollout_report(store: Any) -> dict[str, Any]:
         },
         "recovery_outcomes": dict(sorted(recovery_outcomes.items())),
         "by_adapter": dict(sorted(by_adapter.items())),
+        "legacy_subprocess_inventory": {
+            "scope": "persisted_legacy_subprocess_tasks",
+            "task_count": legacy_tasks,
+            "by_adapter": {
+                adapter: dict(sorted(states.items())) for adapter, states in sorted(legacy_by_adapter.items())
+            },
+        },
     }
